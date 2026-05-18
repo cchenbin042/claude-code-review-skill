@@ -54,6 +54,7 @@ Language-agnostic test quality and coverage review.
 - [ ] Are there time-based assertions that could fail at DST boundaries?
 - [ ] Are there order-dependent assertions on unordered collections?
 - [ ] Are there shared resources (ports, files, DB tables) that could cause conflicts?
+- [ ] **`trigger: /\.only\(/`** — `.only()` left in test, blocks other tests from running
 
 ## 8. Snapshot Tests (if applicable)
 

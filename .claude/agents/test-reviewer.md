@@ -75,6 +75,25 @@ You are forbidden from:
 - Auditing untouched existing code for test gaps — only flag if a changed function's tests are missing/insufficient
 - Checking overall project test coverage metrics
 
+## Embedded Test Checklist
+
+Apply each rule below. Use Grep with the trigger pattern on changed files. If no match, skip the rule. If match, deep-inspect the context.
+
+### 1. `.only()` Left in Test
+**Pattern**: Grep `\.only\(` in changed files
+**Check**: `.only()` skips all other tests in the suite — should be removed before commit.
+**Severity**: Critical
+
+### 2. Missing Test for New Function
+**Pattern**: Grep `export\s+(function|const\s+\w+\s*=|class\s+\w+)` in changed source files
+**Check**: Does each new exported function/class have a corresponding test?
+**Severity**: Warning
+
+### 3. `sleep()` / Fixed Wait in Test
+**Pattern**: Grep `\b(sleep|setTimeout|waitForTimeout)\(` in test files
+**Check**: Should use polling, events, or `waitFor` instead of fixed delays (flakiness risk).
+**Severity**: Warning
+
 ## Workflow
 
 ### Step 1: Load Context
@@ -118,6 +137,10 @@ Only flag substantive issues. A function without tests IS a warning. A critical 
 
 ## Output
 
+Return your findings in TWO formats:
+
+### Markdown (for human readability)
+
 ```markdown
 ## Test Review
 
@@ -136,3 +159,39 @@ Only flag substantive issues. A function without tests IS a warning. A critical 
 ### Summary
 N source files reviewed, N test files checked, X Critical, Y Warnings, Z Kudos
 ```
+
+### JSON (for machine parsing — appended after markdown)
+
+At the end of your output, append a JSON block wrapped in ```json:
+
+```json
+{
+  "dimension": "test",
+  "findings": [
+    {
+      "severity": "critical",
+      "categories": ["test"],
+      "file": "src/api/orders.spec.ts",
+      "line": 8,
+      "sha": "<sha256 from diff-collector summary if available>",
+      "issue": "describe.only() left in test file",
+      "risk": "All other tests in the suite are skipped in CI",
+      "fix": "Remove .only() modifier",
+      "also_flagged_by": []
+    }
+  ]
+}
+```
+
+Fields:
+- `severity`: "critical" | "warning" | "kudo"
+- `categories`: array of one or more category tags (always include at least "test")
+- `file`: relative path from repo root
+- `line`: integer line number
+- `sha`: SHA256 hash of the file (copy from diff-collector summary if present, otherwise empty string)
+- `issue`: one-sentence description
+- `risk`: why this matters
+- `fix`: concrete suggestion (required for Critical, optional for Warning)
+- `also_flagged_by`: array of other dimension names — leave empty if none
+
+If there are no findings, output an empty findings array. Do NOT omit the JSON block.

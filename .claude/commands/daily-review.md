@@ -41,7 +41,12 @@ Use AskUserQuestion to let user choose (max 4 options per tool limit):
 
 ### Step 2: Collect changes
 
-Launch Agent diff-collector (model: haiku) with prompt:
+First, compute the dynamic maxTurns based on file count:
+
+Let `fileCount` = number of files in the diff scope (from git stat).
+Let `turns` = fileCount < 20 ? 5 : fileCount < 50 ? 8 : 12
+
+Launch Agent diff-collector (model: haiku, maxTurns: turns) with prompt:
 "Collect all code changes for: [scope]. Apply pre-filtering: exclude node_modules/.git/dist/build artifacts, binary files, trivial formatting/comment-only changes. If >50 files, switch to summary mode. Include full diffs with language detection per file."
 
 If 0 files returned after filtering, inform user and stop.
@@ -142,7 +147,36 @@ Use Read to load `.claude/skills/code-review/report-template.html`.
 
 #### 4c. Parse findings from agent outputs
 
-Extract findings from each agent's output. Each agent returns markdown tables with severity, file, issue, and detail. Convert each finding into the HTML structure defined in the template:
+Each agent output contains a JSON block (```json ... ```) at the end. **Prefer parsing JSON** — it's structured and reliable. Fall back to markdown table parsing if JSON is missing or malformed.
+
+**JSON parsing (preferred):**
+
+Extract the JSON block from each agent's output. The schema for each finding:
+
+```json
+{
+  "dimension": "security",
+  "findings": [
+    {
+      "severity": "critical",
+      "categories": ["security", "logic"],
+      "file": "src/auth/login.ts",
+      "line": 42,
+      "sha": "a1b2c3d4...",
+      "issue": "Password comparison uses ===",
+      "risk": "Timing side-channel enables user enumeration",
+      "fix": "Use crypto.timingSafeEqual()",
+      "also_flagged_by": ["logic"]
+    }
+  ]
+}
+```
+
+Parse each agent's JSON findings into the internal finding objects used by Step 3.5 (dedup) and Step 4d (HTML generation).
+
+**Markdown parsing (fallback):**
+
+If JSON is missing/unparseable, parse the markdown tables: severity, file, issue, and detail.
 
 **Critical finding HTML:**
 ```html

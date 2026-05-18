@@ -1,6 +1,6 @@
 ---
 name: code-review
-description: Universal code review methodology and severity grading standards. Preloaded into review agents to ensure consistent, actionable review comments across all dimensions.
+description: Code review methodology, severity grading (Critical/Warning/Kudo), and review comment format. Use when reviewing code for security vulnerabilities, logic bugs, style issues, performance problems, or test coverage gaps. Triggers on: "review code", "代码审查", "code review", "安全检查", "PR review", "pre-commit check", "看看代码", "代码质量".
 user-invocable: false
 ---
 
