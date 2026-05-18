@@ -23,6 +23,30 @@ You MUST review each changed file against the performance checklist. You are for
 - Speculating about performance without a visible pattern in the code
 - Flagging micro-optimizations that don't matter (nanoseconds don't count)
 
+## Embedded Performance Checklist
+
+Apply each rule below. Use Grep with the trigger pattern on changed files. If no match, skip the rule. If match, deep-inspect the context.
+
+### 1. N+1 Query in Loop
+**Pattern**: Grep `(for|while|forEach|map)\b[\s\S]{0,200}\bawait\s+\w+\.(find|query|execute)\(` in changed files
+**Check**: Is a DB query or external API call executed inside a loop? Can it be batched?
+**Severity**: Critical
+
+### 2. SELECT * without LIMIT
+**Pattern**: Grep `SELECT\s+\*\s+FROM(?!.*LIMIT)` in changed files (case-insensitive)
+**Check**: Is the query fetching all columns without a row limit? Could return unbounded data.
+**Severity**: Warning
+
+### 3. Missing HTTP Timeout
+**Pattern**: Grep `\b(fetch|axios\.\w+)\(` in changed files
+**Check**: Is there an explicit timeout configured? Without timeout, requests can hang indefinitely.
+**Severity**: Warning
+
+### 4. Repeated Expensive Computation
+**Pattern**: Grep `\.(map|filter|reduce|sort|find)\(` in changed files
+**Check**: Is the same computation repeated? Could it be cached or hoisted out of a hot path?
+**Severity**: Warning
+
 ## Workflow
 
 ### Step 1: Load Context
@@ -63,6 +87,10 @@ Only flag issues where the performance impact is measurable and meaningful.
 
 ## Output
 
+Return your findings in TWO formats:
+
+### Markdown (for human readability)
+
 ```markdown
 ## Performance Review
 
@@ -77,3 +105,39 @@ Only flag issues where the performance impact is measurable and meaningful.
 ### Summary
 N files reviewed, X Critical, Y Warnings
 ```
+
+### JSON (for machine parsing — appended after markdown)
+
+At the end of your output, append a JSON block wrapped in ```json:
+
+```json
+{
+  "dimension": "performance",
+  "findings": [
+    {
+      "severity": "critical",
+      "categories": ["performance"],
+      "file": "src/dao/user-dao.ts",
+      "line": 23,
+      "sha": "<sha256 from diff-collector summary if available>",
+      "issue": "N+1: DB query inside forEach loop",
+      "risk": "Linear DB calls per item — 100 items = 100 queries",
+      "fix": "Batch the query: pass all IDs in a single WHERE IN clause",
+      "also_flagged_by": []
+    }
+  ]
+}
+```
+
+Fields:
+- `severity`: "critical" | "warning" | "kudo"
+- `categories`: array of one or more category tags (always include at least "performance")
+- `file`: relative path from repo root
+- `line`: integer line number
+- `sha`: SHA256 hash of the file (copy from diff-collector summary if present, otherwise empty string)
+- `issue`: one-sentence description
+- `risk`: impact at scale (more users, more data)
+- `fix`: concrete optimization suggestion
+- `also_flagged_by`: array of other dimension names — leave empty if none
+
+If there are no findings, output an empty findings array. Do NOT omit the JSON block.

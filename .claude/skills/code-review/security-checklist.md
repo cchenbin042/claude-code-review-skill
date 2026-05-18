@@ -5,6 +5,7 @@ Based on OWASP Top 10 and industry best practices. Language and framework agnost
 ## 1. Injection
 
 - [ ] Does any user-controllable input reach SQL/NoSQL queries?
+- [ ] **`trigger: /(\+|\+=)\s*(req\.|request\.|params\.|body\.|query\.|\$\{|`\$\{)/`** — string concatenation with user input in query
 - [ ] Are parameterized queries or prepared statements used for all database access?
 - [ ] Is user input concatenated into shell commands, LDAP queries, or template expressions?
 - [ ] Are URL parameters, form fields, headers, and cookies all treated as untrusted?
@@ -13,9 +14,12 @@ Based on OWASP Top 10 and industry best practices. Language and framework agnost
 ## 2. Authentication
 
 - [ ] Are password comparisons using constant-time algorithms?
+- [ ] **`trigger: /(password|secret|token|hash).*===/`** — weak comparison on sensitive values
 - [ ] Is there any hardcoded credential, API key, or token in the diff?
+- [ ] **`trigger: /(apiKey|api_key|secret|password)\s*[:=]\s*["'][^$]/`** — literal string assigned to secret-like variable
 - [ ] Does session/token generation use cryptographically secure randomness?
 - [ ] Are JWT tokens verified with proper algorithm pinning (no `alg: none`)?
+- [ ] **`trigger: /jwt\.(verify|decode)\(/`** — JWT verify/decode without algorithm pinning
 - [ ] Is there a rate-limit or brute-force protection on login endpoints?
 
 ## 3. Authorization
@@ -36,6 +40,7 @@ Based on OWASP Top 10 and industry best practices. Language and framework agnost
 
 - [ ] Do error messages or stack traces leak internal paths, library versions, or logic?
 - [ ] Are passwords, tokens, or PII ever logged?
+- [ ] **`trigger: /console\.(log|error)\(.*(password|token|secret|credential)/`** — sensitive data in console output
 - [ ] Do API responses return more fields than the client needs (over-fetching)?
 - [ ] Are there any sensitive values in comments or debug code?
 - [ ] Are internal IPs, hostnames, or infrastructure details exposed?

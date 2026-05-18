@@ -5,8 +5,10 @@ Language-agnostic performance pattern review.
 ## 1. Database & External Calls
 
 - [ ] Is there a database query or API call inside a loop? (N+1 pattern)
+- [ ] **`trigger: /(for|while|forEach|map)\b[\s\S]{0,200}\bawait\s+\w+\.(find|query|execute)\(/`** — DB query inside loop
 - [ ] Are multiple independent queries batchable into one?
 - [ ] Are SELECT queries fetching all columns (`SELECT *`) when only a few are needed?
+- [ ] **`trigger: /SELECT\s+\*\s+FROM(?!.*LIMIT)/i`** — SELECT * without LIMIT
 - [ ] Are there missing database indexes suggested by the query patterns?
 - [ ] Are external calls on the critical path that could be made async or deferred?
 
@@ -28,6 +30,7 @@ Language-agnostic performance pattern review.
 ## 4. I/O & Blocking
 
 - [ ] Is a synchronous/blocking I/O call on a request-handling thread?
+- [ ] **`trigger: /\b(fetch|axios\.\w+)\(/`** — HTTP call without explicit timeout config
 - [ ] Are file reads done in chunks for large files?
 - [ ] Is there unnecessary serialization/deserialization between processing steps?
 

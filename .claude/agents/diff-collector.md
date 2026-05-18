@@ -11,7 +11,7 @@ allowedTools:
   - Grep
   - Glob
 model: haiku
-maxTurns: 5
+maxTurns: 12
 ---
 
 # Diff Collector Agent

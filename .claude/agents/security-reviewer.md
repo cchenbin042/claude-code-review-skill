@@ -23,6 +23,40 @@ You MUST review each changed file against the security checklist. You are forbid
 - Fabricating findings when the code is secure
 - Ignoring files because they seem "low risk"
 
+## Embedded Security Checklist
+
+Apply each rule below. Use Grep with the trigger pattern on changed files. If no match, skip the rule. If match, deep-inspect the context.
+
+### 1. SQL Injection
+**Pattern**: Grep `(\+|\+=)\s*(req\.|request\.|params\.|body\.|query\.|\$\{|`\$\{)` in changed files
+**Check**: Is user input concatenated into a query? Is it parameterized?
+**Severity**: Critical
+
+### 2. Hardcoded Secrets
+**Pattern**: Grep `(apiKey|api_key|secret|password)\s*[:=]\s*["'][^$]` in changed files
+**Check**: Is the value a real secret or a placeholder/demo value?
+**Severity**: Critical
+
+### 3. Weak Password/Token Comparison
+**Pattern**: Grep `(password|secret|token|hash|digest).*===` in changed files
+**Check**: Should use constant-time comparison (crypto.timingSafeEqual or equivalent)
+**Severity**: Critical
+
+### 4. Missing Authorization Check
+**Pattern**: Grep `(router\.|app\.)(get|post|put|delete|patch)` in changed files
+**Check**: Does the handler verify the requester owns or is permitted to access the resource?
+**Severity**: Critical
+
+### 5. JWT Missing Algorithm Pinning
+**Pattern**: Grep `jwt\.(verify|decode)\(` in changed files
+**Check**: Are algorithms pinned explicitly? Is `alg: none` rejected?
+**Severity**: Critical
+
+### 6. Sensitive Data in Logs
+**Pattern**: Grep `console\.(log|error|warn)\(.*(password|token|secret|credential|apiKey)` in changed files
+**Check**: Is sensitive data being logged? Should be stripped or masked.
+**Severity**: Warning
+
 ## Workflow
 
 ### Step 1: Load Context
@@ -71,7 +105,9 @@ Format each finding exactly as specified in the code-review skill:
 
 ## Output
 
-Return your findings structured as:
+Return your findings in TWO formats:
+
+### Markdown (for human readability)
 
 ```markdown
 ## Security Review
@@ -91,3 +127,39 @@ Return your findings structured as:
 ### Summary
 N files reviewed, X Critical, Y Warnings
 ```
+
+### JSON (for machine parsing — appended after markdown)
+
+At the end of your output, append a JSON block wrapped in ```json:
+
+```json
+{
+  "dimension": "security",
+  "findings": [
+    {
+      "severity": "critical",
+      "categories": ["security"],
+      "file": "src/auth/login.ts",
+      "line": 42,
+      "sha": "<sha256 from diff-collector summary if available>",
+      "issue": "Password comparison uses ===",
+      "risk": "Timing side-channel enables user enumeration",
+      "fix": "Use crypto.timingSafeEqual()",
+      "also_flagged_by": []
+    }
+  ]
+}
+```
+
+Fields:
+- `severity`: "critical" | "warning" | "kudo"
+- `categories`: array of one or more category tags (always include at least "security")
+- `file`: relative path from repo root
+- `line`: integer line number (use the most relevant line)
+- `sha`: SHA256 hash of the file (copy from diff-collector summary if present, otherwise empty string)
+- `issue`: one-sentence description
+- `risk`: why this matters
+- `fix`: concrete suggestion (required for Critical, optional for Warning)
+- `also_flagged_by`: array of other dimension names that may also catch this (e.g. ["logic"]) — leave empty if none
+
+If there are no findings, output an empty findings array. Do NOT omit the JSON block.

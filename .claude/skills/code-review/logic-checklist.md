@@ -15,6 +15,7 @@ Language-agnostic business logic and correctness review.
 
 - [ ] Are errors from external calls (DB, API, filesystem) handled explicitly?
 - [ ] Is there any `catch`/`except` block that silently swallows errors?
+- [ ] **`trigger: /catch\s*\([^)]*\)\s*\{\s*\}/`** — empty catch block, error silently dropped
 - [ ] Do error responses include enough context for debugging without leaking internals?
 - [ ] Are retryable errors distinguished from permanent failures?
 - [ ] Is there a circuit breaker or timeout on external service calls?
