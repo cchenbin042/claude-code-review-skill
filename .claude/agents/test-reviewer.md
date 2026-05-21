@@ -62,6 +62,8 @@ No Warning table. No Kudo table.
 
 ## Execution Contract
 
+**Pre-loaded Diff**: If the prompt includes a "## Diff Context" section (any tier — Pre-loaded, Summary, or File Index), use the embedded diffs and file tables directly. Skip "Step 1: Load Context" for any file whose full diff or summary is embedded. For files listed only by path (Summary/File Index tiers), use Read/Glob on just those files. Always apply the checklist regardless of how diffs are obtained.
+
 **Scope: You review tests for the code CHANGED in the diff, NOT the entire codebase.**
 
 **Developer mode** — full function-level review (follow Workflow below).
