@@ -207,6 +207,45 @@
     font-weight: 500;
   }
 
+  /* ── COVERAGE BAR ── */
+  .coverage-bar {
+    display: flex;
+    gap: 6px;
+    margin-bottom: 32px;
+    flex-wrap: wrap;
+  }
+  .cov-item {
+    font-size: 0.72rem;
+    font-weight: 600;
+    padding: 8px 16px;
+    border-radius: 100px;
+    letter-spacing: 0.04em;
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+  }
+  .cov-item.ok {
+    background: var(--kudo-bg);
+    color: var(--kudo);
+    border: 1px solid var(--kudo-line)30;
+  }
+  .cov-item.warn {
+    background: var(--warning-bg);
+    color: var(--warning);
+    border: 1px solid var(--warning-line)30;
+  }
+  .cov-item.fail {
+    background: var(--critical-bg);
+    color: var(--critical);
+    border: 1px solid var(--critical-line)30;
+  }
+
+  /* ── DIMENSION ERROR ── */
+  .dimension-error {
+    color: var(--warning);
+    font-style: italic;
+  }
+
   /* ── SECTION HEADER ── */
   .section {
     margin-bottom: 48px;
@@ -778,6 +817,9 @@
     </div>
   </div>
 
+  <!-- COVERAGE BAR -->
+  [COVERAGE_BAR]
+
   <!-- LEADER: Module Risk Table -->
   <div class="leader-only">[MODULE_RISK_TABLE]</div>
 
@@ -847,7 +889,7 @@
         <div class="dimension-content">[PERF_DETAIL]</div>
       </div>
 
-      <div class="dimension dev-only">
+      <div class="dimension">
         <div class="dimension-header">
           <div class="dimension-icon test">&#x1F9EA;</div>
           <h3>测试审查</h3>
