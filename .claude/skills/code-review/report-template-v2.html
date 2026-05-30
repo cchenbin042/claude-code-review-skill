@@ -1,0 +1,1374 @@
+<!DOCTYPE html>
+<!--
+  ============================================================
+  report-template-v2.html — Code Review Command Center
+  ============================================================
+
+  设计方向：现代仪表盘风格 (Dashboard-like)
+  - 暗色主题（打印时自动切换亮色）
+  - 纯 HTML/CSS，零 JavaScript 依赖
+  - Leader 模式 Warnings 折叠使用纯 CSS checkbox hack
+  - CSS 变量体系，便于自定义
+
+  === 与 v1 的兼容性 ===
+
+  所有 v1 占位符保持不变，确保 report-builder.md 可无需修改直接使用：
+
+    [MODE_CLASS]          → mode-leader | mode-developer
+    [REPORT_DATE]         → YYYY-MM-DD
+    [REVIEW_TIME]         → HH:MM
+    [SCOPE]               → 审查范围文本
+    [FILE_COUNT]          → 变更文件数
+    [CRITICAL_COUNT]      → 严重问题计数
+    [WARNING_COUNT]       → 建议改进计数
+    [KUDO_COUNT]          → 亮点计数
+    [ADDED_LINES]         → +N 行
+    [DELETED_LINES]       → -N 行
+    [CONTRIBUTORS]        → 参与成员
+    [LANGUAGES]           → 技术栈
+    [PLATFORM]            → GitHub / GitLab / Git
+    [EXECUTIVE_SUMMARY]   → Leader: 摘要 HTML; Developer: 空
+    [MODULE_RISK_TABLE]   → Leader: 模块风险表格; Developer: 空
+    [CRITICAL_SECTION]    → 严重问题卡片或空状态
+    [WARNING_SECTION]     → Developer: 完整列表; Leader: 折叠式
+    [KUDO_SECTION]        → 亮点卡片或空状态
+    [SECURITY_DETAIL]     → 安全审查维度详情
+    [LOGIC_DETAIL]        → 业务逻辑维度详情
+    [STYLE_DETAIL]        → 代码规范维度详情
+    [PERF_DETAIL]         → 性能审查维度详情
+    [TEST_DETAIL]         → 测试审查维度详情
+    [COVERAGE_BAR]        → 5 维度覆盖率指示器
+    [ACTION_ITEMS]        → 行动计划清单
+
+  === v2 新增占位符 ===
+
+  如需启用 Top Bar 模式徽章，report-builder 需额外填充以下占位符：
+
+    [MODE_BADGE_CLASS]    → dev | lead  (对应 CSS 类 topbar-mode-badge.dev | .lead)
+    [MODE_LABEL]          → DEVELOPER | LEADER
+
+  若不填充，徽章区域将为空。
+
+  === CSS 类兼容性 ===
+
+  所有 report-builder.md 中使用的 CSS 类名均已保留：
+  finding / finding-critical / finding-warning / finding-kudo
+  badge-critical / badge-warning / badge-kudo
+  category-security / category-logic / category-style / category-perf / category-test
+  dimension-grid / dimension / dimension-icon / dimension-content / dimension-error
+  coverage-bar / cov-item / exec-summary / exec-card / exec-risk-badge
+  module-risk / module-risk-table / warning-collapsible / warning-toggle
+  action-list / action-item / section-empty / leader-only / dev-only
+-->
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Daily Code Review — [REPORT_DATE]</title>
+<style>
+/* ============================================================
+   DESIGN SYSTEM — Code Review Command Center
+   Dark-first dashboard aesthetic with glass accents.
+   ============================================================ */
+
+:root {
+  /* ── Surface ── */
+  --bg-root:      #060b14;
+  --bg-canvas:    #0a101f;
+  --bg-surface:   #111827;
+  --bg-elevated:  #1a2332;
+  --bg-overlay:   #1e293b;
+
+  /* ── Border ── */
+  --border-default:  #1e2d3d;
+  --border-muted:    #162032;
+  --border-bright:   #2d4058;
+
+  /* ── Text ── */
+  --text-primary:    #e8edf4;
+  --text-secondary:  #94a3b8;
+  --text-tertiary:   #64748b;
+  --text-inverse:    #0a101f;
+
+  /* ── Accent (Amber Gold) ── */
+  --accent:          #f0b429;
+  --accent-soft:     #f0b42918;
+  --accent-glow:     #f0b42940;
+
+  /* ── Severity ── */
+  --critical:        #f43f5e;
+  --critical-bg:     #f43f5e10;
+  --critical-line:   #f43f5e;
+  --critical-glow:   #f43f5e30;
+
+  --warning:         #f59e0b;
+  --warning-bg:      #f59e0b10;
+  --warning-line:    #f59e0b;
+  --warning-glow:    #f59e0b30;
+
+  --kudo:            #10b981;
+  --kudo-bg:         #10b98110;
+  --kudo-line:       #10b981;
+  --kudo-glow:       #10b98130;
+
+  /* ── Category Tags ── */
+  --tag-security:    #a78bfa;
+  --tag-security-bg: #a78bfa16;
+  --tag-logic:       #38bdf8;
+  --tag-logic-bg:    #38bdf816;
+  --tag-style:       #d97706;
+  --tag-style-bg:    #d9770616;
+  --tag-perf:        #2dd4bf;
+  --tag-perf-bg:     #2dd4bf16;
+  --tag-test:        #fbbf24;
+  --tag-test-bg:     #fbbf2416;
+
+  /* ── Status ── */
+  --status-ok:       #10b981;
+  --status-warn:     #f59e0b;
+  --status-fail:     #f43f5e;
+
+  /* ── Geometry ── */
+  --radius-xs:  4px;
+  --radius-sm:  6px;
+  --radius-md:  10px;
+  --radius-lg:  14px;
+  --radius-xl:  20px;
+  --radius-full: 9999px;
+
+  --shadow-sm:  0 1px 2px rgba(0,0,0,0.4);
+  --shadow-md:  0 4px 12px rgba(0,0,0,0.5);
+  --shadow-lg:  0 8px 32px rgba(0,0,0,0.6);
+  --shadow-glow-critical: 0 0 16px var(--critical-glow);
+  --shadow-glow-warning:  0 0 16px var(--warning-glow);
+  --shadow-glow-kudo:     0 0 16px var(--kudo-glow);
+
+  /* ── Typography ── */
+  --font-display: "Inter", "PingFang SC", "Microsoft YaHei", system-ui, -apple-system, sans-serif;
+  --font-body:    "PingFang SC", "Microsoft YaHei", "Noto Sans SC", system-ui, -apple-system, sans-serif;
+  --font-mono:    "JetBrains Mono", "Cascadia Code", "SF Mono", "Fira Code", "Consolas", monospace;
+
+  /* ── Motion ── */
+  --ease-in-out: cubic-bezier(0.4, 0, 0.2, 1);
+  --ease-out:    cubic-bezier(0, 0, 0.2, 1);
+}
+
+/* ── Reset ── */
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html { -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; }
+
+body {
+  font-family: var(--font-body);
+  background: var(--bg-root);
+  color: var(--text-secondary);
+  line-height: 1.65;
+  font-size: 15px;
+  background-image:
+    radial-gradient(ellipse at 20% 0%, #1a274420 0%, transparent 60%),
+    radial-gradient(ellipse at 80% 100%, #0f1a2e40 0%, transparent 60%);
+  background-attachment: fixed;
+  min-height: 100vh;
+}
+
+/* ── Container ── */
+.container {
+  max-width: 960px;
+  margin: 0 auto;
+  padding: 0 28px;
+}
+
+/* ═══════════════════════════════════════════════════
+   TOP BAR
+   ═══════════════════════════════════════════════════ */
+
+.topbar {
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  background: #060b14e8;
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border-bottom: 1px solid var(--border-muted);
+}
+.topbar-inner {
+  max-width: 960px;
+  margin: 0 auto;
+  padding: 0 28px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 48px;
+}
+.topbar-brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  color: var(--text-tertiary);
+}
+.topbar-dot {
+  width: 7px; height: 7px;
+  border-radius: 50%;
+  background: var(--accent);
+  box-shadow: 0 0 8px var(--accent-glow);
+}
+.topbar-right {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  font-size: 0.72rem;
+  color: var(--text-tertiary);
+  letter-spacing: 0.04em;
+}
+.topbar-mode-badge {
+  font-size: 0.64rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  padding: 3px 12px;
+  border-radius: var(--radius-full);
+  text-transform: uppercase;
+}
+.topbar-mode-badge.dev {
+  color: var(--tag-perf);
+  background: var(--tag-perf-bg);
+  border: 1px solid var(--tag-perf)30;
+}
+.topbar-mode-badge.lead {
+  color: var(--accent);
+  background: var(--accent-soft);
+  border: 1px solid var(--accent)30;
+}
+
+/* ═══════════════════════════════════════════════════
+   HERO
+   ═══════════════════════════════════════════════════ */
+
+.hero {
+  padding: 72px 28px 48px;
+  text-align: center;
+  position: relative;
+  overflow: hidden;
+}
+.hero::before {
+  content: '';
+  position: absolute;
+  top: 50%; left: 50%;
+  transform: translate(-50%, -50%);
+  width: 600px; height: 600px;
+  background: radial-gradient(circle, var(--accent-soft) 0%, transparent 70%);
+  pointer-events: none;
+  opacity: 0.5;
+}
+.hero-title {
+  font-family: var(--font-display);
+  font-size: clamp(2.2rem, 5vw, 3.6rem);
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  color: var(--text-primary);
+  line-height: 1.1;
+  position: relative;
+}
+.hero-title-accent {
+  color: var(--accent);
+}
+.hero-meta {
+  font-size: 0.9rem;
+  color: var(--text-tertiary);
+  margin-top: 14px;
+  letter-spacing: 0.02em;
+  position: relative;
+}
+.hero-accent {
+  width: 80px;
+  height: 3px;
+  margin: 28px auto 0;
+  border-radius: 2px;
+  background: linear-gradient(90deg, transparent, var(--accent), transparent);
+  position: relative;
+}
+
+/* ═══════════════════════════════════════════════════
+   EXECUTIVE SUMMARY (Leader only)
+   ═══════════════════════════════════════════════════ */
+
+.exec-summary {
+  margin-bottom: 36px;
+}
+.exec-card {
+  background: var(--bg-surface);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-lg);
+  padding: 28px 32px;
+  position: relative;
+  overflow: hidden;
+}
+
+.exec-card-header {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 24px;
+  flex-wrap: wrap;
+}
+.exec-risk-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  padding: 7px 18px;
+  border-radius: var(--radius-full);
+  flex-shrink: 0;
+}
+.exec-risk-badge.low {
+  background: var(--kudo-bg);
+  color: var(--kudo);
+  border: 1px solid var(--kudo-line)40;
+}
+.exec-risk-badge.medium {
+  background: var(--warning-bg);
+  color: var(--warning);
+  border: 1px solid var(--warning-line)40;
+}
+.exec-risk-badge.high {
+  background: var(--critical-bg);
+  color: var(--critical);
+  border: 1px solid var(--critical-line)40;
+}
+.exec-risk-text {
+  font-size: 1rem;
+  color: var(--text-primary);
+  font-weight: 600;
+  line-height: 1.5;
+}
+.exec-card-stats {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 20px;
+}
+.exec-stat {
+  text-align: center;
+  padding: 16px 12px;
+  background: var(--bg-canvas);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-muted);
+}
+.exec-stat-num {
+  font-family: var(--font-display);
+  font-size: 2rem;
+  font-weight: 800;
+  color: var(--text-primary);
+  line-height: 1;
+  margin-bottom: 6px;
+}
+.exec-stat-label {
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--text-tertiary);
+  font-weight: 600;
+}
+
+/* ═══════════════════════════════════════════════════
+   STATS GRID
+   ═══════════════════════════════════════════════════ */
+
+.stats {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 12px;
+  margin-bottom: 36px;
+}
+.stat-card {
+  background: var(--bg-surface);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-md);
+  padding: 26px 20px 22px;
+  text-align: center;
+  position: relative;
+  overflow: hidden;
+  transition: border-color 0.25s var(--ease-out), box-shadow 0.25s var(--ease-out);
+}
+.stat-card:hover {
+  border-color: var(--border-bright);
+  box-shadow: var(--shadow-md);
+}
+.stat-card::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 20px; right: 20px;
+  height: 2px;
+  border-radius: 0 0 2px 2px;
+  opacity: 0.6;
+}
+.stat-card:nth-child(1)::before { background: var(--accent); }
+.stat-card:nth-child(2)::before { background: var(--critical); }
+.stat-card:nth-child(3)::before { background: var(--warning); }
+.stat-card:nth-child(4)::before { background: var(--kudo); }
+.stat-number {
+  font-family: var(--font-display);
+  font-size: 2.8rem;
+  font-weight: 800;
+  line-height: 1;
+  margin-bottom: 8px;
+  letter-spacing: -0.03em;
+}
+.stat-card:nth-child(1) .stat-number { color: var(--accent); }
+.stat-card:nth-child(2) .stat-number { color: var(--critical); }
+.stat-card:nth-child(3) .stat-number { color: var(--warning); }
+.stat-card:nth-child(4) .stat-number { color: var(--kudo); }
+.stat-label {
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--text-tertiary);
+  font-weight: 600;
+}
+
+/* ═══════════════════════════════════════════════════
+   OVERVIEW
+   ═══════════════════════════════════════════════════ */
+
+.overview {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin-bottom: 28px;
+}
+.overview-item {
+  background: var(--bg-surface);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-md);
+  padding: 20px 24px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+  transition: border-color 0.2s var(--ease-out);
+}
+.overview-item:hover { border-color: var(--border-bright); }
+.overview-label {
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--text-tertiary);
+  font-weight: 600;
+  flex-shrink: 0;
+}
+.overview-value {
+  font-size: 0.88rem;
+  color: var(--text-primary);
+  text-align: right;
+  font-weight: 500;
+  word-break: break-all;
+}
+
+/* ═══════════════════════════════════════════════════
+   COVERAGE BAR
+   ═══════════════════════════════════════════════════ */
+
+.coverage-bar {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 28px;
+  flex-wrap: wrap;
+}
+.cov-item {
+  font-size: 0.7rem;
+  font-weight: 700;
+  padding: 8px 16px;
+  border-radius: var(--radius-full);
+  letter-spacing: 0.04em;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  line-height: 1;
+  transition: box-shadow 0.2s var(--ease-out);
+}
+.cov-item.ok {
+  background: var(--kudo-bg);
+  color: var(--kudo);
+  border: 1px solid var(--kudo-line)30;
+}
+.cov-item.ok:hover { box-shadow: 0 0 12px var(--kudo-glow); }
+.cov-item.warn {
+  background: var(--warning-bg);
+  color: var(--warning);
+  border: 1px solid var(--warning-line)30;
+}
+.cov-item.warn:hover { box-shadow: 0 0 12px var(--warning-glow); }
+.cov-item.fail {
+  background: var(--critical-bg);
+  color: var(--critical);
+  border: 1px solid var(--critical-line)30;
+}
+.cov-item.fail:hover { box-shadow: 0 0 12px var(--critical-glow); }
+
+/* ═══════════════════════════════════════════════════
+   MODULE RISK TABLE (Leader only)
+   ═══════════════════════════════════════════════════ */
+
+.module-risk {
+  margin-bottom: 36px;
+}
+.module-risk-table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+}
+.module-risk-table thead th {
+  text-align: left;
+  padding: 14px 20px;
+  font-size: 0.68rem;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--text-tertiary);
+  background: var(--bg-elevated);
+  border-bottom: 1px solid var(--border-default);
+  font-weight: 700;
+}
+.module-risk-table tbody td {
+  padding: 14px 20px;
+  font-size: 0.85rem;
+  border-bottom: 1px solid var(--border-muted);
+  color: var(--text-secondary);
+  vertical-align: middle;
+}
+.module-risk-table tbody tr:last-child td { border-bottom: none; }
+.module-risk-table tbody tr {
+  transition: background 0.2s var(--ease-out);
+}
+.module-risk-table tbody tr:hover { background: var(--bg-elevated); }
+.module-risk-table .module-name {
+  font-family: var(--font-mono);
+  font-size: 0.82rem;
+  color: var(--accent);
+  font-weight: 600;
+}
+.module-risk-bar {
+  display: flex;
+  gap: 3px;
+  align-items: center;
+  min-width: 120px;
+}
+.module-risk-bar-seg {
+  height: 8px;
+  border-radius: 2px;
+}
+.module-risk-bar-seg.critical {
+  background: var(--critical);
+}
+.module-risk-bar-seg.warning {
+  background: var(--warning);
+}
+.module-risk-bar-seg.clean {
+  background: var(--border-muted);
+}
+.module-risk-table .risk-count {
+  font-family: var(--font-mono);
+  font-size: 0.8rem;
+  font-weight: 700;
+  text-align: center;
+}
+.module-risk-table .risk-count.critical-count { color: var(--critical); }
+.module-risk-table .risk-count.warning-count { color: var(--warning); }
+
+/* ═══════════════════════════════════════════════════
+   SECTIONS
+   ═══════════════════════════════════════════════════ */
+
+.section {
+  margin-bottom: 44px;
+}
+.section-header {
+  display: flex;
+  align-items: baseline;
+  gap: 14px;
+  margin-bottom: 20px;
+}
+.section-header h2 {
+  font-family: var(--font-display);
+  font-size: 1.35rem;
+  font-weight: 800;
+  color: var(--text-primary);
+  letter-spacing: -0.01em;
+}
+.section-count {
+  font-size: 0.78rem;
+  color: var(--text-tertiary);
+  font-weight: 600;
+}
+.section-empty {
+  text-align: center;
+  padding: 40px 24px;
+  color: var(--text-tertiary);
+  font-size: 0.88rem;
+  border: 1px dashed var(--border-default);
+  border-radius: var(--radius-md);
+  background: var(--bg-surface);
+}
+
+/* ═══════════════════════════════════════════════════
+   FINDING CARDS
+   ═══════════════════════════════════════════════════ */
+
+.finding {
+  background: var(--bg-surface);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-md);
+  padding: 20px 24px;
+  margin-bottom: 10px;
+  position: relative;
+  overflow: hidden;
+  transition: border-color 0.25s var(--ease-out), box-shadow 0.25s var(--ease-out);
+}
+.finding::before {
+  content: '';
+  position: absolute;
+  left: 0; top: 0; bottom: 0;
+  width: 3px;
+}
+.finding:hover {
+  border-color: var(--border-bright);
+  box-shadow: var(--shadow-md);
+}
+.finding-critical::before { background: var(--critical-line); }
+.finding-warning::before  { background: var(--warning-line); }
+.finding-kudo::before     { background: var(--kudo-line); }
+.finding-critical:hover { box-shadow: var(--shadow-md), 0 0 12px var(--critical-glow); }
+.finding-warning:hover  { box-shadow: var(--shadow-md), 0 0 12px var(--warning-glow); }
+.finding-kudo:hover     { box-shadow: var(--shadow-md), 0 0 12px var(--kudo-glow); }
+
+/* Finding top row */
+.finding-top {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 10px;
+  flex-wrap: wrap;
+}
+
+/* Severity badge */
+.finding-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.64rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  padding: 4px 12px;
+  border-radius: var(--radius-full);
+  line-height: 1;
+  flex-shrink: 0;
+}
+.badge-critical {
+  background: var(--critical-bg);
+  color: var(--critical);
+  border: 1px solid var(--critical-line)35;
+}
+.badge-warning {
+  background: var(--warning-bg);
+  color: var(--warning);
+  border: 1px solid var(--warning-line)35;
+}
+.badge-kudo {
+  background: var(--kudo-bg);
+  color: var(--kudo);
+  border: 1px solid var(--kudo-line)35;
+}
+
+/* Category tag */
+.finding-category {
+  display: inline-flex;
+  align-items: center;
+  font-size: 0.64rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  padding: 4px 12px;
+  border-radius: var(--radius-full);
+  line-height: 1;
+  flex-shrink: 0;
+}
+.category-security  { color: var(--tag-security); background: var(--tag-security-bg); }
+.category-logic     { color: var(--tag-logic);    background: var(--tag-logic-bg); }
+.category-style     { color: var(--tag-style);    background: var(--tag-style-bg); }
+.category-performance,
+.category-perf      { color: var(--tag-perf);     background: var(--tag-perf-bg); }
+.category-test      { color: var(--tag-test);     background: var(--tag-test-bg); }
+
+/* File reference */
+.finding-file {
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  color: var(--accent);
+  background: var(--bg-canvas);
+  padding: 3px 10px;
+  border-radius: var(--radius-xs);
+  margin-left: auto;
+  font-weight: 500;
+  letter-spacing: -0.01em;
+}
+
+/* Issue title */
+.finding-issue {
+  font-size: 0.95rem;
+  color: var(--text-primary);
+  margin-bottom: 8px;
+  font-weight: 600;
+  line-height: 1.5;
+}
+
+/* Detail lines */
+.finding-detail {
+  font-size: 0.83rem;
+  color: var(--text-tertiary);
+  line-height: 1.6;
+  margin-top: 2px;
+}
+.finding-detail + .finding-detail { margin-top: 5px; }
+.finding-detail strong { color: var(--text-secondary); font-weight: 700; }
+
+/* Code blocks inside findings */
+.finding-code-block {
+  margin-top: 12px;
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+  border: 1px solid var(--border-muted);
+}
+.finding-code-header {
+  display: flex;
+  align-items: center;
+  padding: 6px 14px;
+  font-size: 0.64rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+.finding-code-header.bad {
+  background: #f43f5e16;
+  color: var(--critical);
+  border-bottom: 1px solid var(--critical-line)25;
+}
+.finding-code-header.good {
+  background: #10b98116;
+  color: var(--kudo);
+  border-bottom: 1px solid var(--kudo-line)25;
+}
+.finding-code {
+  margin: 0;
+  padding: 14px 18px;
+  font-family: var(--font-mono);
+  font-size: 0.76rem;
+  line-height: 1.7;
+  overflow-x: auto;
+  white-space: pre;
+  tab-size: 2;
+  background: var(--bg-canvas);
+}
+.finding-code.bad  { color: #fda4af; }
+.finding-code.good { color: #6ee7b7; }
+
+/* Side-by-side diff */
+.finding-code-diff {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1px;
+  background: var(--border-default);
+}
+
+/* ═══════════════════════════════════════════════════
+   DIMENSION PANELS
+   ═══════════════════════════════════════════════════ */
+
+.dimension-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+}
+.mode-leader .dimension-grid { grid-template-columns: repeat(2, 1fr); }
+
+.dimension {
+  background: var(--bg-surface);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-md);
+  padding: 24px 24px 20px;
+  transition: border-color 0.25s var(--ease-out), box-shadow 0.25s var(--ease-out);
+}
+.dimension:hover {
+  border-color: var(--border-bright);
+  box-shadow: var(--shadow-md);
+}
+.dimension-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+.dimension-icon {
+  width: 38px; height: 38px;
+  border-radius: var(--radius-sm);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.1rem;
+  flex-shrink: 0;
+}
+.dimension-icon.security { background: var(--tag-security-bg); color: var(--tag-security); }
+.dimension-icon.logic    { background: var(--tag-logic-bg);    color: var(--tag-logic); }
+.dimension-icon.style    { background: var(--tag-style-bg);    color: var(--tag-style); }
+.dimension-icon.perf     { background: var(--tag-perf-bg);     color: var(--tag-perf); }
+.dimension-icon.test     { background: var(--tag-test-bg);     color: var(--tag-test); }
+
+.dimension h3 {
+  font-family: var(--font-display);
+  font-size: 1rem;
+  color: var(--text-primary);
+  letter-spacing: -0.01em;
+  font-weight: 700;
+}
+.dimension-content {
+  font-size: 0.83rem;
+  color: var(--text-tertiary);
+  line-height: 1.7;
+}
+.dimension-content p { margin-bottom: 8px; }
+.dimension-content p:last-child { margin-bottom: 0; }
+.dimension-content strong { color: var(--text-secondary); font-weight: 600; }
+.dimension-content code {
+  font-family: var(--font-mono);
+  font-size: 0.88em;
+  background: var(--bg-canvas);
+  padding: 2px 6px;
+  border-radius: 3px;
+  color: var(--text-primary);
+}
+.dimension-error {
+  color: var(--warning);
+  font-style: italic;
+}
+
+/* ═══════════════════════════════════════════════════
+   LEADER: COLLAPSIBLE WARNINGS
+   ═══════════════════════════════════════════════════ */
+
+.warning-toggle {
+  display: none;
+}
+.warning-collapsible {
+  margin-bottom: 0;
+}
+.warning-collapsible .warning-toggle-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: var(--accent);
+  cursor: pointer;
+  padding: 10px 20px;
+  border: 1px solid var(--border-bright);
+  border-radius: var(--radius-full);
+  margin-bottom: 14px;
+  transition: all 0.2s var(--ease-out);
+  user-select: none;
+  background: var(--bg-surface);
+}
+.warning-collapsible .warning-toggle-label:hover {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+  box-shadow: 0 0 14px var(--accent-glow);
+}
+.warning-collapsible .warning-list {
+  display: none;
+}
+.warning-collapsible .warning-toggle:checked ~ .warning-list {
+  display: block;
+}
+.warning-collapsible .warning-toggle:checked ~ .warning-toggle-label::after {
+  content: '收起 ▲';
+}
+.warning-collapsible .warning-toggle-label::after {
+  content: '展开 ▼';
+  font-size: 0.7rem;
+  letter-spacing: 0.04em;
+}
+
+/* ═══════════════════════════════════════════════════
+   ACTION ITEMS
+   ═══════════════════════════════════════════════════ */
+
+.action-list {
+  list-style: none;
+  display: grid;
+  gap: 6px;
+}
+.action-item {
+  background: var(--bg-surface);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-sm);
+  padding: 14px 20px;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  transition: border-color 0.2s var(--ease-out), box-shadow 0.2s var(--ease-out);
+}
+.action-item:hover {
+  border-color: var(--border-bright);
+  box-shadow: var(--shadow-sm);
+}
+.action-check {
+  width: 20px; height: 20px;
+  border: 2px solid var(--border-default);
+  border-radius: var(--radius-xs);
+  flex-shrink: 0;
+  transition: border-color 0.2s var(--ease-out);
+}
+.action-item:hover .action-check {
+  border-color: var(--accent);
+}
+.action-author {
+  font-weight: 700;
+  color: var(--accent);
+  flex-shrink: 0;
+  font-size: 0.83rem;
+  min-width: 0;
+}
+.action-desc {
+  flex: 1;
+  font-size: 0.86rem;
+  color: var(--text-secondary);
+}
+.action-file {
+  font-family: var(--font-mono);
+  font-size: 0.74rem;
+  color: var(--text-tertiary);
+  flex-shrink: 0;
+}
+
+/* ═══════════════════════════════════════════════════
+   FOOTER
+   ═══════════════════════════════════════════════════ */
+
+.footer {
+  margin-top: 56px;
+  padding: 24px 0 40px;
+  border-top: 1px solid var(--border-muted);
+  display: flex;
+  justify-content: space-between;
+  color: var(--text-tertiary);
+  font-size: 0.72rem;
+  letter-spacing: 0.04em;
+}
+
+/* ═══════════════════════════════════════════════════
+   MODE TOGGLES
+   ═══════════════════════════════════════════════════ */
+
+.mode-developer .leader-only { display: none !important; }
+.mode-leader .dev-only        { display: none !important; }
+
+/* ═══════════════════════════════════════════════════
+   RESPONSIVE — Tablet
+   ═══════════════════════════════════════════════════ */
+
+@media (max-width: 900px) {
+  .container { padding: 0 20px; }
+  .topbar-inner { padding: 0 20px; }
+  .hero { padding: 56px 20px 40px; }
+  .hero-title { font-size: 2rem; }
+  .stats { grid-template-columns: repeat(2, 1fr); }
+  .stat-number { font-size: 2.2rem; }
+  .stat-card { padding: 22px 16px 18px; }
+  .overview { grid-template-columns: 1fr 1fr; }
+  .dimension-grid { grid-template-columns: 1fr 1fr; }
+  .mode-leader .dimension-grid { grid-template-columns: 1fr 1fr; }
+  .exec-card-stats { grid-template-columns: repeat(3, 1fr); }
+}
+
+/* ═══════════════════════════════════════════════════
+   RESPONSIVE — Mobile
+   ═══════════════════════════════════════════════════ */
+
+@media (max-width: 600px) {
+  .container { padding: 0 14px; }
+  .topbar-inner { padding: 0 14px; height: 44px; }
+  .topbar-brand { font-size: 0.66rem; letter-spacing: 0.08em; }
+  .topbar-right { font-size: 0.66rem; gap: 8px; }
+  .hero { padding: 44px 14px 32px; }
+  .hero-title { font-size: 1.7rem; }
+  .hero-meta { font-size: 0.8rem; }
+  .stats { grid-template-columns: repeat(2, 1fr); gap: 8px; }
+  .stat-number { font-size: 1.9rem; }
+  .stat-card { padding: 20px 12px 16px; }
+  .stat-label { font-size: 0.66rem; }
+  .overview { grid-template-columns: 1fr; gap: 6px; }
+  .overview-item { padding: 16px 18px; }
+  .section-header h2 { font-size: 1.15rem; }
+  .finding { padding: 16px 16px; }
+  .finding-file { margin-left: 0; margin-top: 2px; }
+  .finding-code-diff { grid-template-columns: 1fr; }
+  .dimension-grid { grid-template-columns: 1fr; }
+  .mode-leader .dimension-grid { grid-template-columns: 1fr; }
+  .exec-card { padding: 20px 20px; }
+  .exec-card-header { flex-direction: column; align-items: flex-start; gap: 10px; }
+  .exec-card-stats { grid-template-columns: repeat(3, 1fr); gap: 8px; }
+  .exec-stat-num { font-size: 1.5rem; }
+  .module-risk-table { font-size: 0.75rem; }
+  .module-risk-table thead th,
+  .module-risk-table tbody td { padding: 10px 12px; }
+  .action-item { flex-wrap: wrap; padding: 12px 16px; gap: 8px; }
+  .action-file { width: 100%; }
+  .footer { flex-direction: column; gap: 6px; align-items: center; text-align: center; }
+  .coverage-bar { gap: 5px; }
+  .cov-item { font-size: 0.66rem; padding: 6px 12px; }
+
+  /* Collapse topbar on very small screens */
+  .topbar-date-full { display: none; }
+}
+
+/* ═══════════════════════════════════════════════════
+   PRINT — Light theme, no backgrounds, compact
+   ═══════════════════════════════════════════════════ */
+
+@media print {
+  :root {
+    --bg-root:      #ffffff;
+    --bg-canvas:    #ffffff;
+    --bg-surface:   #ffffff;
+    --bg-elevated:  #f8f9fa;
+    --bg-overlay:   #e9ecef;
+
+    --border-default: #dee2e6;
+    --border-muted:   #e9ecef;
+    --border-bright:  #cbd3da;
+
+    --text-primary:   #111827;
+    --text-secondary: #4b5563;
+    --text-tertiary:  #9ca3af;
+
+    --accent:      #d97706;
+    --accent-soft: #d9770610;
+    --accent-glow: #d9770620;
+
+    --critical:      #dc2626;
+    --critical-bg:   #dc262608;
+    --critical-line: #dc2626;
+    --warning:       #d97706;
+    --warning-bg:    #d9770608;
+    --warning-line:  #d97706;
+    --kudo:          #059669;
+    --kudo-bg:       #05966908;
+    --kudo-line:     #059669;
+
+    --tag-security:  #7c3aed;
+    --tag-logic:     #0284c7;
+    --tag-style:     #d97706;
+    --tag-perf:      #0d9488;
+    --tag-test:      #d97706;
+  }
+
+  body {
+    font-size: 11px;
+    background: white;
+    background-image: none;
+    color: var(--text-secondary);
+  }
+
+  .topbar {
+    position: static;
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+    background: white;
+    border-bottom: 2px solid #111;
+  }
+  .topbar-dot { box-shadow: none; }
+
+  .hero { padding: 24px 0 20px; }
+  .hero::before { display: none; }
+  .hero-title { font-size: 1.6rem; }
+  .hero-accent { background: var(--accent); }
+
+  .stats { gap: 1px; }
+  .stat-card { border: 1px solid var(--border-default); box-shadow: none; }
+  .stat-number { font-size: 1.8rem; }
+  .stat-card::before { display: none; }
+
+  .overview-item { box-shadow: none; }
+
+  .finding, .dimension, .stat-card, .overview-item, .action-item, .exec-card {
+    break-inside: avoid;
+    box-shadow: none !important;
+  }
+  .finding:hover, .dimension:hover, .stat-card:hover, .action-item:hover {
+    box-shadow: none !important;
+    border-color: var(--border-default) !important;
+  }
+
+  .finding::before { width: 4px; }
+  .finding-critical:hover { box-shadow: none !important; }
+  .finding-warning:hover  { box-shadow: none !important; }
+  .finding-kudo:hover     { box-shadow: none !important; }
+
+  .cov-item.ok:hover,
+  .cov-item.warn:hover,
+  .cov-item.fail:hover { box-shadow: none !important; }
+
+  .exec-card { box-shadow: none; }
+
+  .footer { margin-top: 24px; padding: 14px 0 0; }
+
+  .coverage-bar { gap: 4px; }
+  .module-risk-table thead { display: table-header-group; }
+
+  .warning-collapsible .warning-list { display: block !important; }
+  .warning-collapsible .warning-toggle-label { display: none; }
+
+  @page {
+    margin: 16mm;
+    size: A4;
+  }
+}
+
+/* ═══════════════════════════════════════════════════
+   KEYFRAME — Subtle pulse for live report feel
+   ═══════════════════════════════════════════════════ */
+
+@keyframes status-pulse {
+  0%, 100% { opacity: 1; }
+  50%      { opacity: 0.6; }
+}
+.topbar-dot {
+  animation: status-pulse 3s var(--ease-in-out) infinite;
+}
+@media print {
+  .topbar-dot { animation: none; }
+}
+
+</style>
+</head>
+<body class="[MODE_CLASS]">
+
+<!-- ═══════════════════════════════════════════════════
+     TOP BAR
+     ═══════════════════════════════════════════════════ -->
+
+<header class="topbar">
+  <div class="topbar-inner">
+    <div class="topbar-brand">
+      <span class="topbar-dot"></span>
+      <span>DAILY CODE REVIEW</span>
+    </div>
+    <div class="topbar-right">
+      <span class="topbar-mode-badge [MODE_BADGE_CLASS]">[MODE_LABEL]</span>
+      <span class="topbar-date-full">[REPORT_DATE]</span>
+    </div>
+  </div>
+</header>
+
+<!-- ═══════════════════════════════════════════════════
+     HERO
+     ═══════════════════════════════════════════════════ -->
+
+<section class="hero">
+  <h1 class="hero-title">
+    Daily <span class="hero-title-accent">Code Review</span>
+  </h1>
+  <p class="hero-meta">[REPORT_DATE] &nbsp;·&nbsp; [REVIEW_TIME] &nbsp;·&nbsp; [PLATFORM]</p>
+  <div class="hero-accent"></div>
+</section>
+
+<!-- ═══════════════════════════════════════════════════
+     LEADER: Executive Summary
+     ═══════════════════════════════════════════════════ -->
+
+<div class="leader-only">
+  <div class="container">[EXECUTIVE_SUMMARY]</div>
+</div>
+
+<div class="container">
+
+  <!-- ═══════════════════════════════════════════════════
+       STATS GRID
+       ═══════════════════════════════════════════════════ -->
+
+  <div class="stats">
+    <div class="stat-card">
+      <div class="stat-number">[FILE_COUNT]</div>
+      <div class="stat-label">变更文件</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-number">[CRITICAL_COUNT]</div>
+      <div class="stat-label">严重问题</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-number">[WARNING_COUNT]</div>
+      <div class="stat-label">建议改进</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-number">[KUDO_COUNT]</div>
+      <div class="stat-label">亮点</div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════
+       OVERVIEW
+       ═══════════════════════════════════════════════════ -->
+
+  <div class="overview">
+    <div class="overview-item">
+      <span class="overview-label">审查范围</span>
+      <span class="overview-value">[SCOPE]</span>
+    </div>
+    <div class="overview-item">
+      <span class="overview-label">参与成员</span>
+      <span class="overview-value">[CONTRIBUTORS]</span>
+    </div>
+    <div class="overview-item">
+      <span class="overview-label">变更规模</span>
+      <span class="overview-value">+[ADDED_LINES] / -[DELETED_LINES] 行</span>
+    </div>
+    <div class="overview-item">
+      <span class="overview-label">技术栈</span>
+      <span class="overview-value">[LANGUAGES]</span>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════
+       COVERAGE BAR
+       ═══════════════════════════════════════════════════ -->
+
+  [COVERAGE_BAR]
+
+  <!-- ═══════════════════════════════════════════════════
+       LEADER: Module Risk Table
+       ═══════════════════════════════════════════════════ -->
+
+  <div class="leader-only">[MODULE_RISK_TABLE]</div>
+
+  <!-- ═══════════════════════════════════════════════════
+       CRITICAL FINDINGS
+       ═══════════════════════════════════════════════════ -->
+
+  <section class="section">
+    <div class="section-header">
+      <h2>严重问题</h2>
+      <span class="section-count">[CRITICAL_COUNT] 项</span>
+    </div>
+    [CRITICAL_SECTION]
+  </section>
+
+  <!-- ═══════════════════════════════════════════════════
+       WARNINGS
+       ═══════════════════════════════════════════════════ -->
+
+  <section class="section">
+    <div class="section-header">
+      <h2>建议改进</h2>
+      <span class="section-count">[WARNING_COUNT] 项</span>
+    </div>
+    [WARNING_SECTION]
+  </section>
+
+  <!-- ═══════════════════════════════════════════════════
+       KUDOS
+       ═══════════════════════════════════════════════════ -->
+
+  <section class="section">
+    <div class="section-header">
+      <h2>亮点</h2>
+      <span class="section-count">[KUDO_COUNT] 项</span>
+    </div>
+    [KUDO_SECTION]
+  </section>
+
+  <!-- ═══════════════════════════════════════════════════
+       DIMENSION DETAILS
+       ═══════════════════════════════════════════════════ -->
+
+  <section class="section">
+    <div class="section-header">
+      <h2>各维度详情</h2>
+    </div>
+
+    <div class="dimension-grid">
+      <div class="dimension">
+        <div class="dimension-header">
+          <div class="dimension-icon security">&#x1F6E1;</div>
+          <h3>安全审查</h3>
+        </div>
+        <div class="dimension-content">[SECURITY_DETAIL]</div>
+      </div>
+
+      <div class="dimension">
+        <div class="dimension-header">
+          <div class="dimension-icon logic">&#x2699;</div>
+          <h3>业务逻辑</h3>
+        </div>
+        <div class="dimension-content">[LOGIC_DETAIL]</div>
+      </div>
+
+      <div class="dimension">
+        <div class="dimension-header">
+          <div class="dimension-icon style">&#x270E;</div>
+          <h3>代码规范</h3>
+        </div>
+        <div class="dimension-content">[STYLE_DETAIL]</div>
+      </div>
+
+      <div class="dimension">
+        <div class="dimension-header">
+          <div class="dimension-icon perf">&#x26A1;</div>
+          <h3>性能审查</h3>
+        </div>
+        <div class="dimension-content">[PERF_DETAIL]</div>
+      </div>
+
+      <div class="dimension">
+        <div class="dimension-header">
+          <div class="dimension-icon test">&#x1F9EA;</div>
+          <h3>测试审查</h3>
+        </div>
+        <div class="dimension-content">[TEST_DETAIL]</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══════════════════════════════════════════════════
+       ACTION ITEMS
+       ═══════════════════════════════════════════════════ -->
+
+  <section class="section">
+    <div class="section-header">
+      <h2>行动计划</h2>
+    </div>
+    [ACTION_ITEMS]
+  </section>
+
+</div>
+
+<!-- ═══════════════════════════════════════════════════
+     FOOTER
+     ═══════════════════════════════════════════════════ -->
+
+<footer class="footer">
+  <div class="container" style="display:flex;justify-content:space-between;width:100%;">
+    <span>Claude Code 多 Agent 并行审查</span>
+    <span>[REPORT_DATE]</span>
+  </div>
+</footer>
+
+</body>
+</html>

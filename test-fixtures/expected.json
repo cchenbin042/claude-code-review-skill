@@ -1,0 +1,44 @@
+{
+  "description": "Expected findings for self-test fixtures. line tolerance: ±2 rows due to prompt wording variance.",
+  "fixtures": {
+    "sql-injection.ts": {
+      "expected_findings": [
+        {
+          "severity": "critical",
+          "category": "security",
+          "issue_keywords": ["SQL", "injection", "concatenat"],
+          "note": "string concatenation into SQL query with user input"
+        },
+        {
+          "severity": "warning",
+          "category": "logic",
+          "issue_keywords": ["null", "check", "input"],
+          "note": "missing null/undefined check on req.query.name before use"
+        }
+      ]
+    },
+    "n-plus-one.ts": {
+      "expected_findings": [
+        {
+          "severity": "critical",
+          "category": "performance",
+          "issue_keywords": ["N+1", "query", "loop", "forEach"],
+          "note": "DB query executed inside forEach loop on userIds"
+        }
+      ]
+    },
+    "hardcoded-secret.ts": {
+      "expected_findings": [
+        {
+          "severity": "critical",
+          "category": "security",
+          "issue_keywords": ["hardcoded", "key", "secret", "apiKey"],
+          "note": "literal API key string assigned to apiKey variable"
+        }
+      ]
+    },
+    "clean-code.ts": {
+      "expected_findings": []
+    }
+  }
+}

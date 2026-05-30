@@ -40,7 +40,7 @@ echo "DATE=$(date +%Y-%m-%d)" && echo "TIME=$(date +%H:%M)" && mkdir -p reports
 
 ## Step 2: Read the template
 
-Use Read to load `.claude/skills/code-review/report-template.html`.
+Use Read to load `.claude/skills/code-review/report-template-v2.html`.
 
 ## Step 3: Parse findings from agent outputs
 
@@ -133,6 +133,8 @@ If JSON is missing/unparseable, parse the markdown tables: severity, file, issue
 | Placeholder | Value |
 |-------------|-------|
 | `[MODE_CLASS]` | `mode-leader` if leader, else `mode-developer` |
+| `[MODE_BADGE_CLASS]` | `lead` if leader, else `dev` |
+| `[MODE_LABEL]` | `LEADER` if leader, else `DEVELOPER` |
 | `[REPORT_DATE]` | YYYY-MM-DD |
 | `[REVIEW_TIME]` | HH:MM |
 | `[SCOPE]` | Scope + mode label: "今日变更" or "今日变更 (Leader)" |
@@ -247,6 +249,7 @@ Group findings by directory prefix (e.g., `src/auth/`, `src/api/`). Bar segment 
 2. For each reviewed file (not cached, not filtered):
    - key = file path, value = `{ "sha": "<sha>", "result": "<clean|had_critical>", "reviewed_at": "<YYYY-MM-DD>" }`
    - result = "had_critical" if any Critical finding references this file, otherwise "clean"
-3. For `[cached — skipped]` files, keep existing cache entries
-4. Remove entries older than 7 days
-5. Write updated JSON back to `.claude/code-review-cache.json`
+3. For `[cached — skipped]` files, update `reviewed_at` to today's date (file was accessed but unchanged — refresh its LRU timestamp)
+4. Remove entries where `reviewed_at` is more than 30 days ago (30-day LRU: stable files stay cached as long as they're accessed at least once a month)
+5. Remove entries for files that no longer exist in the repository
+6. Write updated JSON back to `.claude/code-review-cache.json`

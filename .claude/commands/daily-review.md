@@ -19,7 +19,7 @@ Collect changes → pre-filter → parallel review → dedup → generate HTML r
 
 1. Final output is ALWAYS `reports/daily-review-YYYY-MM-DD.html`. Never .md.
 2. Use the Write tool to create the file. Do NOT output report content in chat.
-3. The HTML template at `.claude/skills/code-review/report-template.html` is the ONLY valid output structure.
+3. The HTML template at `.claude/skills/code-review/report-template-v2.html` is the ONLY valid output structure.
 
 ## Workflow
 

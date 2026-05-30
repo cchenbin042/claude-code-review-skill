@@ -1,5 +1,7 @@
 # Security Review Checklist
 
+> **grep 引擎**: 本文件所有 trigger 模式基于 ripgrep (rg) 语法。若降级为 grep -E，跳过含 `(?!)`、`\s\S` 的高级模式。
+
 Based on OWASP Top 10 and industry best practices. Language and framework agnostic.
 
 ## 1. Injection
