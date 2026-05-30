@@ -60,6 +60,14 @@ Every finding MUST follow this structure:
 **Fix**: Concrete suggestion, preferably with a code sketch
 ```
 
+## Grep 引擎声明
+
+本项目 checklist 中的所有 grep 模式基于 **ripgrep (rg)** 语法编写，支持 PCRE2 特性（`(?!)` lookahead、`\s\S` 跨行匹配等）。
+
+执行审查时：
+1. 优先使用 `rg`（Grep 工具内置 ripgrep）
+2. 若环境不支持 rg，降级为 `grep -E`，此时跳过含 lookahead/跨行匹配的高级规则，并在输出中标注 `[grep: 高级规则已跳过]`
+
 ## Pre-Review Protocol
 
 Before inspecting the diff, a review agent MUST:

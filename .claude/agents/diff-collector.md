@@ -36,6 +36,8 @@ Before collecting diffs, check the review cache to skip files that haven't chang
 
 Read `.claude/code-review-cache.json` if it exists. If the file doesn't exist or contains only `{}`, skip directly to Step 1.
 
+Cache entries have a 30-day LRU eviction policy (managed by report-builder). Any entry older than 30 days since last access has already been purged.
+
 #### 0b. Compute SHAs for changed files
 
 **CRITICAL — compute ALL SHAs in ONE batched command. Never call sha256sum per-file.**
@@ -67,6 +69,16 @@ In the summary, report:
 - How many files were skipped via cache
 - How many files need recheck (had previous criticals)
 - Cache hit rate
+
+#### 0e. Detect grep engine
+
+Check if `rg` (ripgrep) is available. Claude Code's Grep tool uses ripgrep internally, so this is typically a no-op — but record the result for reviewers:
+
+```bash
+which rg 2>/dev/null && echo "RIPGREP" || echo "GNU_GREP"
+```
+
+Pass this result as `grepEngine` in the diff summary. If `GNU_GREP`, add a warning: "grep 引擎降级: GNU grep。高级 PCRE 规则（lookahead、跨行匹配）将跳过，审查覆盖度可能下降。"
 
 ### Step 1: Collect raw diffs (per scope below)
 

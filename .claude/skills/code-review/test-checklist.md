@@ -1,5 +1,7 @@
 # Test Review Checklist
 
+> **grep 引擎**: 本文件所有 trigger 模式基于 ripgrep (rg) 语法。若降级为 grep -E，跳过含 `(?!)`、`\s\S` 的高级模式。
+
 Language-agnostic test quality and coverage review.
 
 ## 1. Test Presence
